@@ -53,4 +53,10 @@ public class AvroCompatibilityChecker extends AbstractCompatibilityChecker<Incom
     protected CompatibilityDifference transform(Incompatibility original) {
         return new SimpleCompatibilityDifference(original.getMessage(), original.getLocation());
     }
+
+    @Override
+    public CompatibilityExecutionResult handleDifferencesBasedOnLevel(Set<CompatibilityDifference> diffs,
+            CompatibilityLevel level) {
+        return CompatibilityExecutionResult.incompatibleOrEmpty(diffs);
+    }
 }

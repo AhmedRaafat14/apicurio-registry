@@ -29,6 +29,7 @@ public abstract class AbstractCompatibilityChecker<D> implements CompatibilityCh
         final String proposedArtifactContent = proposedArtifact.getContent().content();
 
         Set<D> incompatibleDiffs = new HashSet<>();
+        Set<D> fullCompatibilityCheckDiffs = new HashSet<>();
         String lastExistingSchema = existingArtifacts.get(existingArtifacts.size() - 1).getContent()
                 .content();
 
@@ -50,7 +51,7 @@ public abstract class AbstractCompatibilityChecker<D> implements CompatibilityCh
                         proposed) -> isBackwardsCompatibleWith(proposed, existing, resolvedReferences));
                 break;
             case FULL:
-                incompatibleDiffs = ImmutableSet.<D> builder()
+                fullCompatibilityCheckDiffs = ImmutableSet.<D> builder()
                         .addAll(isBackwardsCompatibleWith(lastExistingSchema, proposedArtifactContent,
                                 resolvedReferences))
                         .addAll(isBackwardsCompatibleWith(proposedArtifactContent, lastExistingSchema,
@@ -70,9 +71,12 @@ public abstract class AbstractCompatibilityChecker<D> implements CompatibilityCh
             case NONE:
                 break;
         }
-        Set<CompatibilityDifference> diffs = incompatibleDiffs.stream().map(this::transform)
+        Set<CompatibilityDifference> diffs = (compatibilityLevel == CompatibilityLevel.FULL ? fullCompatibilityCheckDiffs : incompatibleDiffs)
+                .stream()
+                .map(this::transform)
                 .collect(Collectors.toSet());
-        return CompatibilityExecutionResult.incompatibleOrEmpty(diffs);
+
+        return handleDifferencesBasedOnLevel(diffs, compatibilityLevel);
     }
 
     /**
@@ -97,4 +101,8 @@ public abstract class AbstractCompatibilityChecker<D> implements CompatibilityCh
             Map<String, TypedContent> resolvedReferences);
 
     protected abstract CompatibilityDifference transform(D original);
+
+    // Filter out diff based on compatibility level
+    protected abstract CompatibilityExecutionResult handleDifferencesBasedOnLevel(
+            Set<CompatibilityDifference> diffs, CompatibilityLevel level);
 }

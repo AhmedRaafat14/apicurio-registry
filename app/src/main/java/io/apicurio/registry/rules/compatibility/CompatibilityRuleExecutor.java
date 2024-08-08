@@ -6,7 +6,6 @@ import io.apicurio.registry.rules.RuleContext;
 import io.apicurio.registry.rules.RuleExecutor;
 import io.apicurio.registry.rules.RuleViolation;
 import io.apicurio.registry.rules.RuleViolationException;
-import io.apicurio.registry.rules.compatibility.jsonschema.diff.DiffType;
 import io.apicurio.registry.types.RuleType;
 import io.apicurio.registry.types.provider.ArtifactTypeUtilProvider;
 import io.apicurio.registry.types.provider.ArtifactTypeUtilProviderFactory;
@@ -18,7 +17,6 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 import static java.util.Collections.emptyList;
 
@@ -47,19 +45,6 @@ public class CompatibilityRuleExecutor implements RuleExecutor {
         CompatibilityExecutionResult compatibilityExecutionResult = checker.testCompatibility(level,
                 existingArtifacts, context.getUpdatedContent(), context.getResolvedReferences());
         if (!compatibilityExecutionResult.isCompatible()) {
-            // Special handling for FULL compatibility level
-            if (level == CompatibilityLevel.FULL) {
-                Set<CompatibilityDifference> filteredDifferences = filterOptionalPropertyDifferences(
-                        compatibilityExecutionResult.getIncompatibleDifferences());
-                if (filteredDifferences.isEmpty()) {
-                    // If only optional property differences are present, consider it compatible
-                    return;
-                } else {
-                    compatibilityExecutionResult = CompatibilityExecutionResult
-                            .incompatibleOrEmpty(compatibilityExecutionResult.getIncompatibleDifferences());
-                }
-            }
-
             throw new RuleViolationException(String.format(
                     "Incompatible artifact: %s [%s], num of incompatible diffs: {%s}, list of diff types: %s",
                     context.getArtifactId(), context.getArtifactType(),
@@ -69,19 +54,6 @@ public class CompatibilityRuleExecutor implements RuleExecutor {
                     RuleType.COMPATIBILITY, context.getConfiguration(),
                     transformCompatibilityDiffs(compatibilityExecutionResult.getIncompatibleDifferences()));
         }
-    }
-
-    private Set<CompatibilityDifference> filterOptionalPropertyDifferences(
-            Set<CompatibilityDifference> differences) {
-        return differences.stream().filter(diff -> !isOptionalPropertyDifference(diff))
-                .collect(Collectors.toSet());
-    }
-
-    private boolean isOptionalPropertyDifference(CompatibilityDifference diff) {
-        return diff.asRuleViolation().getDescription()
-                .equalsIgnoreCase(DiffType.OBJECT_TYPE_PROPERTY_SCHEMAS_EXTENDED.toString())
-                || diff.asRuleViolation().getDescription()
-                        .equalsIgnoreCase(DiffType.OBJECT_TYPE_PROPERTY_SCHEMAS_NARROWED.toString());
     }
 
     /**
